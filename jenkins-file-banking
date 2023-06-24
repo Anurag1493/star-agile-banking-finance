@@ -1,0 +1,51 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('git checkout') {
+            steps {
+                git 'https://github.com/Anurag1493/star-agile-banking-finance.git'
+            }
+        }
+        stage('maven build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        stage('build docker image') {
+            steps {
+                sh 'docker build -t anurag1493/banking:1.0 .'
+                
+            }
+        }
+        stage('docker image push dockerhub') {
+            steps {
+                withCredentials([string(credentialsId: 'docker-hub1', variable: 'dockerhubpassword')]) {
+                sh "docker login -u anurag1493 -p ${dockerhubpassword}" 
+                sh 'docker push anurag1493/banking:1.0'
+                }
+            }
+        }
+        stage('configure and deploy to prod server') {
+            steps {
+                ansiblePlaybook become: true, credentialsId: 'user1', disableHostKeyChecking: true, installation: 'Ansible', inventory: 'sshansiblekey', playbook: 'configure-testserver.yml'
+                
+            
+                
+              
+            }
+        }
+        stage('runable selenium jar') {
+            steps {
+                sh 'java -jar selenium-banking.jar'
+            }
+        }
+        stage('configure and deploy to test server') {
+            steps {
+                ansiblePlaybook become: true, becomeUser: null, credentialsId: 'user1', disableHostKeyChecking: true, installation: 'Ansible', inventory: 'ansiblesshkey', playbook: 'configure-testserver.yml', sudoUser: null, vaultCredentialsId: 'ubuntu'
+                
+            }
+        }
+        
+    }
+}
